@@ -233,6 +233,112 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true; // keep sendResponse alive
   }
 
+  // Generate Quiz from topic using FastAPI quiz generator
+  if (msg.type === "generateQuiz") {
+    console.log(
+      "[Background] generateQuiz handler triggered for topic:",
+      msg.payload?.topic
+    );
+    try {
+      const topic = (msg.payload && msg.payload.topic) || "General Topic";
+      console.log(
+        "[Background] Posting to http://localhost:3000/api/generate-quiz"
+      );
+
+      fetch("http://localhost:3000/api/generate-quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic })
+      })
+        .then((r) => {
+          console.log("[Background] Fetch response status:", r.status);
+          return r.json();
+        })
+        .then((data) => {
+          console.log("[Background] Fetch response data:", data);
+          if (data.ok && data.quiz) {
+            console.log(
+              "[Background] Quiz generated with",
+              data.quiz.mcq?.length || 0,
+              "questions, broadcasting to tabs..."
+            );
+            // Broadcast quiz result to all tabs
+            chrome.tabs.query({}, (tabs) => {
+              console.log(
+                "[Background] Found",
+                tabs.length,
+                "tabs to broadcast to"
+              );
+              tabs.forEach((t) => {
+                try {
+                  console.log("[Background] Sending quizGenerated to tab", t.id);
+                  chrome.tabs.sendMessage(
+                    t.id,
+                    {
+                      type: "quizGenerated",
+                      payload: {
+                        quiz: data.quiz,
+                        topic,
+                        details: data.details,
+                        error: null,
+                      },
+                    },
+                    () => {
+                      if (chrome.runtime.lastError) {
+                        console.log(
+                          "[Background] Tab not ready for message:",
+                          chrome.runtime.lastError.message
+                        );
+                      }
+                    }
+                  );
+                } catch (e) {
+                  console.error("[Background] Error sending to tab:", e);
+                }
+              });
+            });
+            sendResponse({ ok: true, quiz: data.quiz, details: data.details });
+          } else {
+            console.log("[Background] Quiz generation failed");
+            chrome.tabs.query({}, (tabs) => {
+              tabs.forEach((t) => {
+                try {
+                  chrome.tabs.sendMessage(
+                    t.id,
+                    {
+                      type: "quizGenerated",
+                      payload: {
+                        quiz: null,
+                        topic,
+                        error: data.error || "Quiz generation failed",
+                      },
+                    },
+                    () => {
+                      if (chrome.runtime.lastError) {
+                        console.log(
+                          "[Background] Tab not ready for message:",
+                          chrome.runtime.lastError.message
+                        );
+                      }
+                    }
+                  );
+                } catch (e) {}
+              });
+            });
+            sendResponse({ ok: false, error: data.error || "Quiz generation failed" });
+          }
+        })
+        .catch((err) => {
+          console.error("[Background] generateQuiz fetch failed:", err);
+          sendResponse({ ok: false, error: err.message });
+        });
+    } catch (e) {
+      console.error("[Background] generateQuiz error:", e);
+      sendResponse({ ok: false, error: e && e.message });
+    }
+    return true; // keep sendResponse alive
+  }
+
   // Allow broadcasting an engagementUpdate to all tabs (forward from one tab)
   if (msg.type === "engagementUpdate" && msg.payload) {
     try {

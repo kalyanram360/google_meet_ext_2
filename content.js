@@ -173,14 +173,60 @@
 
     // Action execution functions
     function executeMatchQuiz(topic) {
-      showTempMessage("Matching students and triggering quiz...");
+      showTempMessage("Generating quiz and matching students...");
       try {
-        if (chrome && chrome.runtime && chrome.runtime.sendMessage)
-          chrome.runtime.sendMessage({
-            type: "matchAndTriggerQuiz",
-            payload: { topic },
-          });
-      } catch (e) {}
+        if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
+          // First, generate the quiz
+          chrome.runtime.sendMessage(
+            {
+              type: "generateQuiz",
+              payload: { topic },
+            },
+            (response) => {
+              if (chrome.runtime && chrome.runtime.lastError) {
+                const errMsg = chrome.runtime.lastError.message || "";
+                if (errMsg.includes("context invalidated")) {
+                  console.warn(
+                    "[ContentScript] Extension context invalidated (expected during reload)"
+                  );
+                } else {
+                  console.error("[ContentScript] Background error:", errMsg);
+                  showTempMessage("❌ Error: " + errMsg);
+                }
+                return;
+              }
+              
+              if (response && response.ok && response.quiz) {
+                console.log("[ContentScript] Quiz generated:", response.quiz);
+                showTempMessage("✅ Quiz generated! Pairing students...");
+                
+                // Store the generated quiz globally for pairing
+                window.__generatedQuiz = response.quiz;
+                window.__quizTopic = topic;
+                
+                // Now execute the pairing with the generated quiz
+                executePairAndPostLinksWithQuiz(response.quiz, topic);
+              } else if (response && response.error) {
+                console.warn("[ContentScript] Quiz error:", response.error);
+                showTempMessage("❌ Quiz generation failed: " + response.error);
+              }
+            }
+          );
+        } else {
+          console.error(
+            "[ContentScript] chrome.runtime.sendMessage not available"
+          );
+        }
+      } catch (e) {
+        if (e && e.message && e.message.includes("context invalidated")) {
+          console.warn(
+            "[ContentScript] Extension context invalidated (expected during reload)"
+          );
+        } else {
+          console.error("[ContentScript] executeMatchQuiz error:", e);
+          showTempMessage("❌ Error: " + (e.message || "Unknown error"));
+        }
+      }
     }
 
     function executeGenGif(topic) {
@@ -462,7 +508,90 @@
       });
     }
 
-    // Main execution function
+    // Main execution function with generated quiz
+    async function executePairAndPostLinksWithQuiz(generatedQuiz, topic) {
+      showTempMessage("Getting participants...");
+
+      const participants = getParticipantNames();
+
+      if (participants.length < 2) {
+        showTempMessage("Need at least 2 participants to pair");
+        return;
+      }
+
+      showTempMessage(
+        `Found ${participants.length} participants. Creating pairs...`
+      );
+
+      const pairs = pairParticipants(participants);
+
+      // Convert generated quiz to Django format
+      const quizForDjango = {
+        title: `${topic} - Competitive Quiz`,
+        description: `A quiz about ${topic} for paired participants`,
+        questions: generatedQuiz.mcq.map((q, index) => ({
+          question: q.question,
+          options: q.options,
+          correct_answer: q.options.indexOf(q.answer), // Find index of correct answer
+        })),
+        duration: 120, // 2 minutes for 5 questions
+        difficulty: "medium",
+      };
+
+      console.log("Quiz to send to Django:", quizForDjango);
+
+      // Build chat messages with quiz links
+      let chatMessage = `📚 Pair Assignments - ${topic} Quiz:\n\n`;
+
+      for (let i = 0; i < pairs.length; i++) {
+        const pair = pairs[i];
+
+        // Create quiz for this pair via Django API
+        let quizId = null;
+        try {
+          const quizResponse = await fetch(
+            "http://127.0.0.1:8000/api/quiz/create/",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(quizForDjango),
+            }
+          );
+
+          if (quizResponse.ok) {
+            const quizData = await quizResponse.json();
+            if (quizData.ok) {
+              quizId = quizData.data.id;
+              console.log(`Quiz ${quizId} created for pair ${i + 1}`);
+            }
+          }
+        } catch (e) {
+          console.error("Error creating quiz:", e);
+        }
+
+        // Generate room link with quiz parameter
+        const roomLink = quizId
+          ? `http://127.0.0.1:8000/chat/${pair.roomId}?quiz=${quizId}`
+          : `http://127.0.0.1:8000/chat/${pair.roomId}`;
+
+        chatMessage += `${pair.name1} & ${pair.name2}: ${roomLink}\n`;
+      }
+
+      console.log("Chat message to send:", chatMessage);
+      showTempMessage("Posting to chat...");
+
+      // Post to chat
+      const posted = await postToChat(chatMessage);
+
+      if (posted) {
+        showTempMessage("✅ Quiz links posted successfully!");
+      } else {
+        showTempMessage("Failed to post to chat. Message copied to console.");
+        console.log("Chat message:", chatMessage);
+      }
+    }
+
+    // Main execution function (fallback without quiz generation)
     async function executePairAndPostLinks() {
       showTempMessage("Getting participants...");
 
@@ -554,11 +683,11 @@
       }
     }
 
-    // Pair participants and post chat links
+    // Pair participants and post chat links - now triggers quiz generation
     const pairParticipantsBtn = document.getElementById("cb-pair-participants");
     if (pairParticipantsBtn) {
       pairParticipantsBtn.addEventListener("click", () => {
-        executePairAndPostLinks();
+        showTopicModal("matchQuiz", "What topic for the quiz?");
       });
     }
 

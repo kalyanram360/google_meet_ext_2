@@ -116,6 +116,58 @@ app.get("/api/searchGif", async (req, res) => {
   }
 });
 
+// Quiz generation endpoint using FastAPI quiz generator service
+app.post("/api/generate-quiz", async (req, res) => {
+  try {
+    const { topic } = req.body;
+    console.log("[generateQuiz] Received request for topic:", topic);
+
+    // Validate topic
+    if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
+      console.warn("[generateQuiz] Invalid topic provided");
+      return res
+        .status(400)
+        .json({ ok: false, error: "Topic must be a non-empty string" });
+    }
+
+    const trimmedTopic = topic.trim();
+    
+    // Call FastAPI quiz generator service (port 8000)
+    const QUIZ_API_URL = process.env.QUIZ_API_URL || "http://localhost:8000";
+    console.log(`[generateQuiz] Calling quiz generator at ${QUIZ_API_URL}/generate-quiz`);
+    
+    const response = await fetch(`${QUIZ_API_URL}/generate-quiz`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic: trimmedTopic })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("[generateQuiz] FastAPI error:", errorData);
+      return res.status(response.status).json({ 
+        ok: false, 
+        error: errorData.detail || "Quiz generation failed" 
+      });
+    }
+
+    const data = await response.json();
+    console.log("[generateQuiz] Quiz generated successfully with", 
+      data.quiz?.mcq?.length || 0, "questions");
+    
+    return res.json({ 
+      ok: true, 
+      quiz: data.quiz,
+      topic: trimmedTopic,
+      details: data.details
+    });
+    
+  } catch (err) {
+    console.error("[generateQuiz] Error:", err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // Flashcard generation endpoint using Google Gemini API
 app.get("/api/generateFlashcard", async (req, res) => {
   try {
