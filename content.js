@@ -17,7 +17,6 @@
     <!-- Buttons (primary actions) -->
     <button id="cb-show-engagement" class="cb-btn">Engagement Meter</button>
     <button id="cb-pair-participants" class="cb-btn">Pair & Post Chat Links</button>
-    <button id="cb-match-trigger" class="cb-btn">Match Students & Quiz</button>
     <button id="cb-gen-gif" class="cb-btn">Generate GIF</button>
     <button id="cb-gen-flashcard" class="cb-btn">Generate Flashcard</button>
       <!-- Engagement Meter UI -->
@@ -563,13 +562,13 @@
       });
     }
 
-    // Wire action buttons to open topic modal
-    const matchTriggerBtn = document.getElementById("cb-match-trigger");
-    if (matchTriggerBtn) {
-      matchTriggerBtn.addEventListener("click", () => {
-        showTopicModal("matchQuiz", "What topic for the competitive quiz?");
-      });
-    }
+    // // Wire action buttons to open topic modal
+    // const matchTriggerBtn = document.getElementById("cb-match-trigger");
+    // if (matchTriggerBtn) {
+    //   matchTriggerBtn.addEventListener("click", () => {
+    //     showTopicModal("matchQuiz", "What topic for the competitive quiz?");
+    //   });
+    // }
 
     const genGifBtn = document.getElementById("cb-gen-gif");
     if (genGifBtn) {
