@@ -66,7 +66,7 @@ app.get("/api/searchGif", async (req, res) => {
     console.log("[searchGif] Using Search Engine ID:", SEARCH_ENGINE_ID);
 
     // Search query: topic + gif
-    const searchQuery = `${topic} gif animated`;
+    const searchQuery = `${topic} animated educational GIFs`;
     const url = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(
       searchQuery
     )}&cx=${SEARCH_ENGINE_ID}&key=${API_KEY}&searchType=image&num=1`;
@@ -84,10 +84,11 @@ app.get("/api/searchGif", async (req, res) => {
 
     if (!response.ok) {
       if (data.error) {
+        console.error("[searchGif] Full Google API error response:", JSON.stringify(data.error, null, 2));
         throw new Error(
           `Google API error: ${
             data.error.message || JSON.stringify(data.error)
-          }`
+          }. Please check: 1) Custom Search API is enabled in Google Cloud Console, 2) API key has no restrictions, 3) Search Engine ID is correct`
         );
       }
       throw new Error(
@@ -194,8 +195,11 @@ app.get("/api/generateFlashcard", async (req, res) => {
     // Import Gemini
     const { GoogleGenerativeAI } = require("@google/generative-ai");
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    
+    // Use gemini-2.5-flash (confirmed available for this API key)
+    console.log("[generateFlashcard] Requesting model: gemini-2.5-flash");
     const model = genAI.getGenerativeModel({
-      model: "models/gemini-2.5-flash",
+      model: "gemini-2.5-flash",
     });
 
     // Create prompt for flashcard
