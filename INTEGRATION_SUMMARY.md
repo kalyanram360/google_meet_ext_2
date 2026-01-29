@@ -54,7 +54,7 @@ Created comprehensive docs:
 .\start_all_services.ps1
 
 # Load extension in Chrome
-# chrome://extensions/ → Load unpacked → select this folder
+# chrome://extensions/ → Load unpacked → select Extension folder
 
 # Join Google Meet with 2+ participants
 # Click "Pair & Post Chat Links"
@@ -329,7 +329,7 @@ taskkill /PID {pid} /F
 ## 🚀 Next Steps
 
 1. **Start Services**: Run `.\start_all_services.ps1`
-2. **Load Extension**: Chrome → `chrome://extensions/` → Load unpacked
+2. **Load Extension**: Chrome → `chrome://extensions/` → Load unpacked → select Extension folder
 3. **Test Flow**: Follow [TESTING_CHECKLIST.md](TESTING_CHECKLIST.md)
 4. **Customize**: Modify quiz templates in `quiz_generator_2/modules/quiz_generator.py`
 5. **Deploy**: See deployment docs when ready

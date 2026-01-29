@@ -76,7 +76,7 @@ python manage.py runserver
 1. Open Chrome and go to `chrome://extensions/`
 2. Enable "Developer mode"
 3. Click "Load unpacked"
-4. Select the `google_meet_ext_2` folder
+4. Select the `google_meet_ext_2/Extension` folder
 5. Join a Google Meet session
 
 ## Feature: Pair & Post Chat Links with AI Quiz
