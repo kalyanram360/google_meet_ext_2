@@ -1,4 +1,5 @@
-# 🎓 ClassBoost - AI-Powered Education Platform
+# 🎓 Smart Attendance and Engagement Tracking System
+
 
 > **A comprehensive hackathon project combining Google Meet integration, attendance tracking, and AI-powered educational tools**
 
